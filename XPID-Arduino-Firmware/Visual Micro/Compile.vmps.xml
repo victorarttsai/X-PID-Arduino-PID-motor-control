@@ -37,6 +37,12 @@
         <VCCodeMacro Name="FASTLOOP" Value="1" />
         <VCCodeMacro Name="cbi" Value="(_SFR_BYTE(sfr) &amp;= ~_BV(bit))" />
         <VCCodeMacro Name="sbi" Value="(_SFR_BYTE(sfr) |= _BV(bit))" />
+        <VCCodeMacro Name="LOWBYTE" Value="((unsigned char) (v))" />
+        <VCCodeMacro Name="HIGHBYTE" Value="((unsigned char) (((unsigned int) (v)) &gt;&gt; 8))" />
+        <VCCodeMacro Name="BYTELOW" Value="(*(((unsigned char *) (&amp;v) + 1)))" />
+        <VCCodeMacro Name="BYTEHIGH" Value="(*((unsigned char *) (&amp;v)))" />
+        <VCCodeMacro Name="GUARD_MOTOR_1_GAIN" Value="100.0" />
+        <VCCodeMacro Name="GUARD_MOTOR_2_GAIN" Value="100.0" />
       </VCCodeMacros>
       <VCCodeVariables>
         <VCCodeVariable Name="firmaware_version_mayor" />

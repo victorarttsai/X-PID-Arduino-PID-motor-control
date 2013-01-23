@@ -40,11 +40,10 @@
 	21-22	D component of motor 2
 
 
-
 	Pin out of arduino for H-Bridge
 
 	Pin 10 - PWM1 - Speed for Motor 1. 
-	Pin 11 - PWM2 - Speed for Motor 2.
+	Pin  9 - PWM2 - Speed for Motor 2.
 	Pin  2 - INA1 - motor 1 turn 
 	Pin  3 - INB1 - motor 1 turn
 	Pin  4 - INB1 - motor 2 turn
@@ -59,7 +58,6 @@
 
 */
 
-#include "PID_v1.h"
 #include <EEPROM.h>
 
 //Some speed test switches for testers ;)
@@ -73,6 +71,14 @@
 #ifndef sbi
 	#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
+
+#define LOWBYTE(v)   ((unsigned char) (v))								//Read
+#define HIGHBYTE(v)  ((unsigned char) (((unsigned int) (v)) >> 8))
+#define BYTELOW(v)   (*(((unsigned char *) (&v) + 1)))					//Write
+#define BYTEHIGH(v)  (*((unsigned char *) (&v)))
+
+#define   GUARD_MOTOR_1_GAIN   100.0     
+#define   GUARD_MOTOR_2_GAIN   100.0
 
 //Firmware version info
 int firmaware_version_mayor=1;
@@ -119,7 +125,7 @@ int ControlPinM1Inp2		=3;			// motor 1 INP2 output, this is the arduino pin desc
 int ControlPinM2Inp1		=4;			// motor 2 INP1 output, this is the arduino pin description
 int ControlPinM2Inp2		=5;			// motor 2 INP2 output, this is the arduino pin description
 int PWMPinM1				=10;		// motor 1 PWM output
-int PWMPinM2				=11;		// motor 2 PWM output
+int PWMPinM2				=9;			// motor 2 PWM output
 
 // Pot feedback inputs
 int FeedbackPin1			= A0;		// select the input pin for the potentiometer 1, PC0
@@ -136,15 +142,24 @@ int motordirection1		= 0;			// motor 1 move direction 0=brake, 1=forward, 2=reve
 int motordirection2		= 0;			// motor 2 move direction 0=brake, 1=forward, 2=reverse
 int oldmotordirection1	= 0;
 int oldmotordirection2	= 0;
-double proportional1	= 3.000;
-double integral1		= 35.000;
-double derivative1		= 10.000;
-double proportional2	= 3.000;
-double integral2		= 35.000;
-double derivative2		= 10.000;
-double SetpointM1, InputM1, OutputM1, SetpointM2, InputM2, OutputM2;
-PID Motor1PID(&InputM1, &OutputM1, &SetpointM1, proportional1, integral1, derivative1, DIRECT);
-PID Motor2PID(&InputM2, &OutputM2, &SetpointM2, proportional2, integral2, derivative2, DIRECT);
+double K_motor_1		= 1;
+double proportional1	= 4.200;		//initial value
+double integral1		= 0.400;
+double derivative1		= 0.400;
+double K_motor_2		= 1;
+double proportional2	= 4.200;
+double integral2		= 0.400;
+double derivative2		= 0.400;
+int OutputM1					= 0;
+int OutputM2					= 0;
+double integrated_motor_1_error = 0;
+double integrated_motor_2_error = 0;
+float last_motor_1_error		= 0;
+float last_motor_2_error		= 0; 
+
+byte debugbyte =0;				//This values are for debug purpose and can be send via
+int debuginteger =0;			//the SendDebug serial 211 command to the X-Sim plugin
+double debugdouble =0;			
 
 void setup()
 {
@@ -164,6 +179,7 @@ void setup()
 	UnsetMotor1Inp2();
 	UnsetMotor2Inp1();
 	UnsetMotor2Inp2();
+	TCCR1B = TCCR1B & 0b11111100; //This is a hack for changing the PWM frequency to a higher value, if removed it is 490Hz
 #if FASTADC
 	// set analogue prescale to 16
 	sbi(ADCSRA,ADPS2) ;
@@ -260,6 +276,19 @@ void SendPidCount()
 	Serial.write(int(llow));
 }
 
+void SendDebugValues()
+{
+	//The double is transformed into a integer * 10 !!!
+	int doubletransfere=int(double(debugdouble*10.000));
+	Serial.write('X');
+	Serial.write(211);
+	Serial.write(debugbyte);
+	Serial.write(HIGHBYTE(debuginteger));
+	Serial.write(LOWBYTE(debuginteger));
+	Serial.write(HIGHBYTE(doubletransfere));
+	Serial.write(LOWBYTE(doubletransfere));
+}
+
 void SendFirmwareVersion()
 {
 	Serial.write('X');
@@ -352,6 +381,10 @@ void ParseCommand()
 		UnsetMotor2Inp1();
 		UnsetMotor2Inp2();
 	}
+	if(commandbuffer[0]==211)		//Send all debug values
+	{
+		SendDebugValues();
+	}
 }
 
 void FeedbackPotWorker()
@@ -382,61 +415,78 @@ void SerialWorker()
 
 void CalculateMotorDirection()
 {
-	//Motor1
-	if(currentanalogue1 != target1)
+	if(target1 > (currentanalogue1 + FeedbackPotDeadZone1) || target1 < (currentanalogue1 - FeedbackPotDeadZone1))
 	{
-		if(currentanalogue1 < target1)
-		{
-			if(currentanalogue1 < target1-FeedbackPotDeadZone1){motordirection1=1;}else{motordirection1=0;}
+		if (OutputM1 >= 0)  
+		{                                    
+			motordirection1=1;				// drive motor 1 forward
+		}  
+		else 
+		{                                              
+			motordirection1=2;				// drive motor 1 backward
+			OutputM1 = abs(OutputM1);
 		}
-		else
-		{
-			if(currentanalogue1 > target1+FeedbackPotDeadZone1){motordirection1=2;}else{motordirection1=0;}
-		}
-	}else{motordirection1=0;}
+	}
+	else
+	{
+		motordirection1=0;
+	}
 
-	//Motor 2
-	if(currentanalogue2 != target2)
+	if(target2 > (currentanalogue2 + FeedbackPotDeadZone2) || target2 < (currentanalogue2 - FeedbackPotDeadZone2))
 	{
-		if(currentanalogue2 < target2)
-		{
-			if(currentanalogue2 < target2-FeedbackPotDeadZone2){motordirection2=1;}else{motordirection2=0;}
+		if (OutputM2 >= 0)  
+		{                                    
+			motordirection2=1;				// drive motor 2 forward
+		}  
+		else 
+		{                                              
+			motordirection2=2;				// drive motor 2 backward
+			OutputM2 = abs(OutputM2);
 		}
-		else
-		{
-			if(currentanalogue2 > target2+FeedbackPotDeadZone2){motordirection2=2;}else{motordirection2=0;}
-		}
-	}else{motordirection2=0;}
+	}
+	else
+	{
+		motordirection2=0;
+	}
+
+	OutputM1 = constrain(OutputM1, -255, 255);
+	OutputM2 = constrain(OutputM2, -255, 255);
+}
+
+int updateMotor1Pid(int targetPosition, int currentPosition)   
+{
+	float error = (float)targetPosition - (float)currentPosition; 
+	float pTerm_motor_R = proportional1 * error;
+	integrated_motor_1_error += error;                                       
+	float iTerm_motor_R = integral1 * constrain(integrated_motor_1_error, -GUARD_MOTOR_1_GAIN, GUARD_MOTOR_1_GAIN);
+	float dTerm_motor_R = derivative1 * (error - last_motor_1_error);                            
+	last_motor_1_error = error;
+
+	return constrain(K_motor_1*(pTerm_motor_R + iTerm_motor_R + dTerm_motor_R), -255, 255);
+}
+
+int updateMotor2Pid(int targetPosition, int currentPosition)   
+{
+	float error = (float)targetPosition - (float)currentPosition; 
+	float pTerm_motor_L = proportional2 * error;
+	integrated_motor_2_error += error;                                       
+	float iTerm_motor_L = integral2 * constrain(integrated_motor_2_error, -GUARD_MOTOR_2_GAIN, GUARD_MOTOR_2_GAIN);
+	float dTerm_motor_L = derivative2 * (error - last_motor_2_error);                            
+	last_motor_2_error = error;
+
+	return constrain(K_motor_2*(pTerm_motor_L + iTerm_motor_L + dTerm_motor_L), -255, 255);
 }
 
 void CalculatePID()
 {
-	if(motordirection1 != 0)
-	{
-		SetpointM1 = target1;
-		InputM1 = currentanalogue1;
-		Motor1PID.Compute();
-		if(OutputM1 < 0)
-		{
-			OutputM1 *= -1;
-			motordirection1=2;
-		}
-	}
-	if(motordirection2 != 0)
-	{
-		SetpointM2 = target2;
-		InputM1 = currentanalogue2;
-		Motor2PID.Compute();
-		if(OutputM2 < 0)
-		{
-			OutputM2 *= -1;
-			motordirection2=2;
-		}
-	}
+	OutputM1=updateMotor1Pid(target1,currentanalogue1);
+	OutputM2=updateMotor2Pid(target2,currentanalogue2);
 }
 
 void SetPWM()
 {
+	debuginteger=motordirection1;
+	debugdouble=OutputM1;
 	if(motordirection1 != 0)
 	{
 		analogWrite(PWMPinM1, int(OutputM1));
@@ -565,13 +615,9 @@ void loop()
 	{
 		FeedbackPotWorker();
 		SerialWorker();
-		CalculateMotorDirection();
 		CalculatePID();
+		CalculateMotorDirection();
 		SetPWM();
-		
-		//analogWrite(PWMPinM1,	  128);
-		//analogWrite(PWMPinM2,	  128);
-
 		SetHBridgeControl();
 		pidcount++;
 	}

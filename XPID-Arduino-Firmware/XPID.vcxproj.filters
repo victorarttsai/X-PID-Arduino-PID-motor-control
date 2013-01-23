@@ -18,10 +18,10 @@
     <None Include="XPID.ino" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Visual Micro\.XPID.vsarduino.h">
+    <ClInclude Include="PID_v1.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="PID_v1.h">
+    <ClInclude Include="Visual Micro\.XPID.vsarduino.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

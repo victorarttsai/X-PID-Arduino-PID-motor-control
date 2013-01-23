@@ -31,6 +31,7 @@ void WriteEEProm();
 void ReadEEProm();
 void SendAnalogueFeedback(int analogue1, int analogue2);
 void SendPidCount();
+void SendDebugValues();
 void SendFirmwareVersion();
 void EEPromToSerial(int eeprom_address);
 void ClearEEProm();
@@ -38,6 +39,8 @@ void ParseCommand();
 void FeedbackPotWorker();
 void SerialWorker();
 void CalculateMotorDirection();
+int updateMotor1Pid(int targetPosition, int currentPosition);
+int updateMotor2Pid(int targetPosition, int currentPosition);
 void CalculatePID();
 void SetPWM();
 void SetMotor1Inp1();
@@ -54,5 +57,3 @@ void SetHBridgeControl();
 #include "C:\Program Files\arduino\hardware\arduino\variants\standard\pins_arduino.h" 
 #include "C:\Program Files\arduino\hardware\arduino\cores\arduino\arduino.h"
 #include "C:\Users\SirNoName\Documents\Arduino\XPID\XPID.ino"
-#include "C:\Users\SirNoName\Documents\Arduino\XPID\PID_v1.cpp"
-#include "C:\Users\SirNoName\Documents\Arduino\XPID\PID_v1.h"
