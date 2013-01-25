@@ -41,6 +41,7 @@ Next to that you need to download the current available firmware for the arduino
 ###Test your PID controller with X-Sim:###
 
 Start the X-Sim Converter.exe application. After it has started you should see the arduino in the interface setup. You can open the setup dialog by double clicking the X-PID entry on the right side. Remove the power of the motor and setup your minimum and maximum values if you could not solve a mechanical solution for a 100% pot way usage. Move the X-PID window to the side to see the interface setup. Select your motor output and enter 10% or 90% in the value box. Now you can press the "Set Output" button and your controller should drive the motor to its new position.
+![Settings Window](https://raw.github.com/X-Sim/X-PID-Arduino-PID-motor-control/master/img/plugin1.jpg)
 
 ###PID tuning:###
 
