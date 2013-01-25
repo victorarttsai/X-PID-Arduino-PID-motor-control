@@ -37,10 +37,8 @@ Start the X-Sim Converter.exe application. After it has started you should see t
 
 ###PID tuning:###
 
-Open the X-Sim plugin in the interface setup with a doubleclick on the left shown "X-PID" entry in the module listbox.
-For manual tuning, set all three constants to zero, then turn up Kp until oscillation occurs.  
-Then turn up Kd until oscillation disappears.  Adjust Kd until the system is critically damped, i.e. there's no overshoot.  
-Then increase Ki until the steady-state error goes to zero in a reasonable time.
+Open the X-Sim plugin in the interface setup with a doubleclick on the left shown "X-PID" entrthe setting for one arduino board. You can select your arduino output and enter a 90% value. If you press "SetOutput" and "ClearOutput" you can test your movement for the PID adjustment very well. You may also use the slider panel of the extractor application which is able to make sawtooth signals.
+For manual tuning, set all three constants to zero, then turn up Kp until oscillation occurs. Then turn up Kd until oscillation disappears.  Adjust Kd until the system is critically damped, i.e. there's no overshoot. Then increase Ki until the steady-state error goes to zero in a reasonable time.
 
 ###Pot software adjustment:###
 
