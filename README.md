@@ -1,9 +1,14 @@
+![Donate](https://raw.github.com/X-Sim/X-PID-Arduino-PID-motor-control/master/img/gplushintergrund.jpg)
 ## Arduino open source PID control firmware and hardware ##
+([Make a Micro Donation if you find this post usefull!](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=ZXXJNRQW9QYAN))
 
 This low cost project is a RC servo like position control of one or two geared motor(s) with a pot as angle feedback. You can send the arduino microcontroller a value from 0 to 1023 and the arduino will control the motor speed and direction to reach your target value. The PID algorithm will insure that the motor will not get into hold vibrations if the pot has some influences. This article will describe where you have to take attentions and what you have to setup to get the best results.
 The project will help you to connect any arduino motor shield or other H-Bridges to the controller because it is open source and the output pins can therefor be changed as you like.
 The code is hosted on GitHUB and can be easily downloaded. You can upload a better modified version and improove this article by contacting me. The project home is www.x-sim.de. The licence is open source but you need to relink my page if you use parts of this project. The code is for Arduino UNO boards but should work on other devices.
 A windows sample source code (X-Sim plugin) is attached to show how to communicate with this board.
+All the hardware stuff is common eBay hardware that can be ordered in china or local stores. For me the arduino UNO was at 17Euro and each H-Bridge did cost 25Euro. The wipers are parts of the junk yard or out of the spare part automotive sector.
+
+![Settings Window](https://raw.github.com/X-Sim/X-PID-Arduino-PID-motor-control/master/img/xpid1.jpg)
 
 ### You will need for this project: ###
 - a arduino UNO or arduino duemilanove (another arduino can be used but you have to change the source code)
@@ -81,6 +86,4 @@ You may need a galvanic parting of the H-Bridge ground to the PC/USB ground. Som
 ###Arduino buy reqirements:###
 
 The code is written for a arduino UNO R3. Some older boards may have serial port problems in the here used 115200 baud rate. For this you can change the source code to lower baud rates. The arduino duemilanove and all other arduino compatible boards should also work with some attention. You need the latest drivers, the fitting FTDI settings if you use a arduino with FTDI USB/RS232 converter chip. The code is written for a Atmel328p microcontroller but can be rewritten for the other arduino boards.
-
-
 
