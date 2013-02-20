@@ -93,8 +93,8 @@ HANDLE openPort(CString portName, unsigned int baudRate)
 		CloseHandle(port);
 		return INVALID_HANDLE_VALUE;
 	}
-	timeouts.ReadIntervalTimeout = 10;
-	timeouts.ReadTotalTimeoutConstant = 10;
+	timeouts.ReadIntervalTimeout = 100;
+	timeouts.ReadTotalTimeoutConstant = 100;
 	timeouts.ReadTotalTimeoutMultiplier = 0;
 	timeouts.WriteTotalTimeoutConstant = 10;
 	timeouts.WriteTotalTimeoutMultiplier = 0;
@@ -113,8 +113,8 @@ HANDLE openPort(CString portName, unsigned int baudRate)
 	}
 	commState.BaudRate = baudRate;
 	commState.fBinary = 1;
-	commState.fDtrControl = DTR_CONTROL_DISABLE;
-	commState.fRtsControl = RTS_CONTROL_DISABLE;
+	//commState.fDtrControl = DTR_CONTROL_ENABLE; //Reset pin of arduino, ftdi will always reset on opening the port
+	//commState.fRtsControl = RTS_CONTROL_ENABLE;
 	commState.ByteSize = 8;
 	commState.Parity = NOPARITY;
 	commState.StopBits = ONESTOPBIT;
@@ -132,13 +132,26 @@ HANDLE openPort(CString portName, unsigned int baudRate)
 		CloseHandle(port);
 		return INVALID_HANDLE_VALUE;
 	}
+	PurgeComm(port,PURGE_TXCLEAR |PURGE_RXCLEAR |PURGE_TXABORT| PURGE_RXABORT);
 	return port;
+}
+
+// Generate checksum
+byte MakeChecksum(byte* command, int size)
+{
+	byte checksum=0;
+	for(int z=0; z < size; z++)
+	{
+		char v1=command[z];
+		checksum ^= command[z];
+	}
+	return checksum;
 }
 
 // Sets the XPID target variable (0-1023).
 BOOL xpidSetTarget(HANDLE port, int portnumber ,int target)
 {
-	unsigned char command[4];
+	byte command[5];
 	int high,low;
 	high=target/256;
 	low=target-(high*256);
@@ -149,10 +162,11 @@ BOOL xpidSetTarget(HANDLE port, int portnumber ,int target)
 	command[1] = portnumber+1;
 	command[2] = high;
 	command[3] = low;
+	command[4] = MakeChecksum(&command[1],3);
 	// Send the command to the device.
-	success = WriteFile(port, command, 4, &bytesTransferred, NULL);
+	success = WriteFile(port, command, 5, &bytesTransferred, NULL);
 	if (!success){return FALSE;}
-	if (bytesTransferred != 4){return FALSE;}
+	if (bytesTransferred != 5){return FALSE;}
 	return TRUE;
 }
 
@@ -164,7 +178,7 @@ BOOL xpidSetPowerOff()
 	{
 		if(xpid_struct[z].xpidpresent==true)
 		{
-			unsigned char command[4];
+			byte command[5];
 			DWORD bytesTransferred;
 			BOOL success;
 			// Compose the command for motor 1
@@ -172,9 +186,10 @@ BOOL xpidSetPowerOff()
 			command[1] = 207;
 			command[2] = 0;
 			command[3] = 0;
+			command[4] = MakeChecksum(&command[1],3);
 			// Send the command to the device.
-			success = WriteFile(xpid_struct[z].comporthandle, command, 4, &bytesTransferred, NULL);
-			if (!success || bytesTransferred != 4)
+			success = WriteFile(xpid_struct[z].comporthandle, command, 5, &bytesTransferred, NULL);
+			if (!success || bytesTransferred != 5)
 			{
 				xpid_struct[z].xpidpresent=false; 
 				CloseHandle(xpid_struct[z].comporthandle); 
@@ -186,9 +201,10 @@ BOOL xpidSetPowerOff()
 			command[1] = 208;
 			command[2] = 0;
 			command[3] = 0;
+			command[4] = MakeChecksum(&command[1],3);
 			// Send the command to the device.
-			success = WriteFile(xpid_struct[z].comporthandle, command, 4, &bytesTransferred, NULL);
-			if (!success || bytesTransferred != 4)
+			success = WriteFile(xpid_struct[z].comporthandle, command, 5, &bytesTransferred, NULL);
+			if (!success || bytesTransferred != 5)
 			{
 				xpid_struct[z].xpidpresent=false; 
 				CloseHandle(xpid_struct[z].comporthandle); 
@@ -208,7 +224,7 @@ BOOL xpidSetPowerOn()
 	{
 		if(xpid_struct[z].xpidpresent==true)
 		{
-			unsigned char command[4];
+			byte command[5];
 			DWORD bytesTransferred;
 			BOOL success;
 			// Compose the command for motor 1
@@ -216,9 +232,10 @@ BOOL xpidSetPowerOn()
 			command[1] = 209;
 			command[2] = 0;
 			command[3] = 0;
+			command[4] = MakeChecksum(&command[1],3);
 			// Send the command to the device.
-			success = WriteFile(xpid_struct[z].comporthandle, command, 4, &bytesTransferred, NULL);
-			if (!success || bytesTransferred != 4)
+			success = WriteFile(xpid_struct[z].comporthandle, command, 5, &bytesTransferred, NULL);
+			if (!success || bytesTransferred != 5)
 			{
 				xpid_struct[z].xpidpresent=false; 
 				CloseHandle(xpid_struct[z].comporthandle); 
@@ -230,9 +247,10 @@ BOOL xpidSetPowerOn()
 			command[1] = 210;
 			command[2] = 0;
 			command[3] = 0;
+			command[4] = MakeChecksum(&command[1],3);
 			// Send the command to the device.
-			success = WriteFile(xpid_struct[z].comporthandle, command, 4, &bytesTransferred, NULL);
-			if (!success || bytesTransferred != 4)
+			success = WriteFile(xpid_struct[z].comporthandle, command, 5, &bytesTransferred, NULL);
+			if (!success || bytesTransferred != 5)
 			{
 				xpid_struct[z].xpidpresent=false; 
 				CloseHandle(xpid_struct[z].comporthandle); 
@@ -256,8 +274,8 @@ CString GetFirmwareVersion(HANDLE comhandle)
 		CloseHandle(comhandle);
 		return "";
 	}
-	timeouts.ReadIntervalTimeout = 100;
-	timeouts.ReadTotalTimeoutConstant = 100;
+	timeouts.ReadIntervalTimeout = 300;
+	timeouts.ReadTotalTimeoutConstant = 300;
 	timeouts.ReadTotalTimeoutMultiplier = 0;
 	timeouts.WriteTotalTimeoutConstant = 10;
 	timeouts.WriteTotalTimeoutMultiplier = 0;
@@ -268,18 +286,19 @@ CString GetFirmwareVersion(HANDLE comhandle)
 		return "";
 	}
 	// Ask the firmware on comport if it is a Arduino with XPID firmware
-	char response[9];
-	char command[4]={'X',202,0,0};
+	byte response[9];
+	byte command[5]={'X',202,0,0,0};
+	command[4] = MakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return "";}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return "";}
 	// Read the response from the device.
 	success = ReadFile(comhandle, response, 9, &bytesTransferred, NULL);
 	if (!success || bytesTransferred != 9){return "";}
 	for(int z=0; z < 9; z++)
 	{
-		firmware=firmware+response[z];
+		firmware=firmware+char(response[z]);
 	}
 	/* Set the timeouts back */
 	success = GetCommTimeouts(comhandle, &timeouts);
@@ -288,8 +307,8 @@ CString GetFirmwareVersion(HANDLE comhandle)
 		CloseHandle(comhandle);
 		return "";
 	}
-	timeouts.ReadIntervalTimeout = 10;
-	timeouts.ReadTotalTimeoutConstant = 10;
+	timeouts.ReadIntervalTimeout = 100;
+	timeouts.ReadTotalTimeoutConstant = 100;
 	timeouts.ReadTotalTimeoutMultiplier = 0;
 	timeouts.WriteTotalTimeoutConstant = 10;
 	timeouts.WriteTotalTimeoutMultiplier = 0;
@@ -309,20 +328,24 @@ int ReadXPIDEEPRomValue(HANDLE comhandle, int mem_address)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	byte response[3];
-	char command[4]={'X',204,0,0};
+	byte response[6];
+	byte command[5]={'X',204,0,0,0};
 	command[2]=mem_address;
+	command[4] = MakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return -1;}
-	// Read the response from the device.
-	success = ReadFile(comhandle, response, 6, &bytesTransferred, NULL);
-	Sleep(10);
-	if (!success || bytesTransferred != 3){return -1;}
-	if(response[0]=='X' && response[1]==204)
+	for(int z=0; z < 3; z++)
 	{
-		return int(response[2]);
+		success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+		if (!success || bytesTransferred != 5){return -1;}
+		// Read the response from the device.
+		success = ReadFile(comhandle, response, 6, &bytesTransferred, NULL);
+		Sleep(10);
+		if (!success || bytesTransferred != 3){return -1;}
+		if(response[0]=='X' && response[1]==204)
+		{
+			return int(response[2]);
+		}
 	}
 	return -1;
 }
@@ -649,34 +672,69 @@ void ResearchDevices(void)
 			newxpidstruct.comname = asi[ii].strPortName;
 			newxpidstruct.devicepath = asi[ii].strDevPath;
 			newxpidstruct.friendlyname = asi[ii].strFriendlyName;
-			//Look if a SCN5 is present	on this comport
 			//Open comport and set the speed
-			HANDLE comhandle=openPort(newxpidstruct.devicepath,CBR_115200);
+			int baudrate=CBR_115200;
+			DCB commState;
+			BOOL success;
+			COMMTIMEOUTS timeouts;
+			HANDLE comhandle=openPort(newxpidstruct.devicepath,baudrate);
 			if(comhandle)
 			{
-				CString firmware=GetFirmwareVersion(comhandle);
-				//if(firmware==""){Sleep(100); firmware=GetFirmwareVersion(comhandle);}
-				if(firmware != "" && firmware[0]=='X' && firmware[1]=='-' && firmware[2]=='P' && firmware[3]=='I' && firmware[4]=='D' && firmware[5]==' ')
+				for(int retrycount=0; retrycount < 11; retrycount++) //retry 11 times until there is a arduino (ftdi versions need 1 second after comport reset)
 				{
-					//Found a xpid on comport, now check if it is working
-					newxpidstruct.comporthandle=comhandle;
-					newxpidstruct.xpidname=firmware+" "+newxpidstruct.comname;
-					newxpidstruct.friendlyname=asi[ii].strFriendlyName;
-					newxpidstruct.devicepath=asi[ii].strDevPath;
-					newxpidstruct.comname=asi[ii].strPortName;
-					newxpidstruct.xpidsetting1.renamename="";
-					newxpidstruct.xpidsetting1.renameport=false;
-					newxpidstruct.xpidpresent=true;
-					//Read out the eeprom
-					ReadXPIDSettings(comhandle,&newxpidstruct);
-					//Check if this XPID has to be renamed
-					ScanExistingRegistryEntry(&newxpidstruct);
-					xpid_struct.push_back(newxpidstruct);
-					DeviceDetected++;
-				}
-				else
-				{
-					CloseHandle(comhandle);
+					/* Set the baud rate. */
+					success = GetCommState(comhandle, &commState);
+					if (!success)
+					{
+						CloseHandle(comhandle);
+						comhandle=NULL;
+						break;
+					}
+					commState.BaudRate = baudrate;
+					commState.fBinary = 1;
+					commState.ByteSize = 8;
+					commState.Parity = NOPARITY;
+					commState.StopBits = ONESTOPBIT;
+					success = SetCommState(comhandle, &commState);
+					if (!success)
+					{
+						CloseHandle(comhandle);
+						comhandle=NULL;
+						break;
+					}
+					if(baudrate==CBR_115200 && retrycount > 0){baudrate=CBR_9600;}
+					/* Flush out any bytes received from the device earlier. */
+					success = FlushFileBuffers(comhandle);
+					if (!success)
+					{
+						CloseHandle(comhandle);
+						comhandle=NULL;
+						break;
+					}
+					PurgeComm(comhandle,PURGE_TXCLEAR |PURGE_RXCLEAR |PURGE_TXABORT| PURGE_RXABORT);
+					if(comhandle)
+					{
+						CString firmware=GetFirmwareVersion(comhandle);
+						if(firmware != "" && firmware[0]=='X' && firmware[1]=='-' && firmware[2]=='P' && firmware[3]=='I' && firmware[4]=='D' && firmware[5]==' ')
+						{
+							//Found a xpid on comport, now check if it is working
+							newxpidstruct.comporthandle=comhandle;
+							newxpidstruct.xpidname=firmware+" "+newxpidstruct.comname;
+							newxpidstruct.friendlyname=asi[ii].strFriendlyName;
+							newxpidstruct.devicepath=asi[ii].strDevPath;
+							newxpidstruct.comname=asi[ii].strPortName;
+							newxpidstruct.xpidsetting1.renamename="";
+							newxpidstruct.xpidsetting1.renameport=false;
+							newxpidstruct.xpidpresent=true;
+							//Read out the eeprom
+							ReadXPIDSettings(comhandle,&newxpidstruct);
+							//Check if this XPID has to be renamed
+							ScanExistingRegistryEntry(&newxpidstruct);
+							xpid_struct.push_back(newxpidstruct);
+							DeviceDetected++;
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -697,7 +755,7 @@ void ZeroOutput(void)
 	poweroffcount=timeoutdelay*10;
 	BOOL success=TRUE;
 	bool startthread=false;
-	byte command[16]={0};
+	//byte command[16]={0};
 	//Send neutral position to all xpid interfaces
 	int numberofcomports=xpid_struct.size();
 	for(int z=0; z < numberofcomports; z++)

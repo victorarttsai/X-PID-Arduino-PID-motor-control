@@ -4,7 +4,6 @@
 //
 #define IDD_SETTINGS                    104
 #define IDB_ANALYZER                    109
-#define IDC_SCN5COMBO                   1001
 #define IDC_XPID_COMBO                  1001
 #define IDC_COMPORT                     1002
 #define IDC_DEVICEPATH                  1003
@@ -15,10 +14,8 @@
 #define IDC_RENAMEPORT                  1008
 #define IDC_EDIT1                       1009
 #define IDC_TIMEOUT_EDIT                1009
-#define IDC_BUTTON1                     1010
 #define IDC_SETNAME_BUTTON              1010
 #define IDC_INVERTDTR                   1011
-#define IDC_BUTTON2                     1012
 #define IDC_CLOSE_BUTTON                1012
 #define IDC_SETSPEED                    1013
 #define IDC_SPEEDEDIT                   1014
@@ -30,7 +27,6 @@
 #define IDC_LIMITER                     1020
 #define IDC_SWITCHTIME                  1021
 #define IDC_USEMANUAL                   1022
-#define IDC_CHECK2                      1023
 #define IDC_ENABLE_DEBUG                1023
 #define IDC_COMTIMEOUT                  1024
 #define IDC_UPDATEFREQUENCY             1025
@@ -48,7 +44,6 @@
 #define IDC_POSITIONEDIT                1038
 #define IDC_CURRENTPOSITIONPROGRESS     1039
 #define IDC_RENAME_COMBO                1046
-#define IDC_CHECK1                      1047
 #define IDC_TIMEOUT_CHECK               1047
 #define IDC_PID_COUNTER                 1048
 #define IDC_SET_BUTTON_MINIMUM_1        1049
@@ -84,8 +79,8 @@
 #define IDC_DEBUG_BYTE                  1079
 #define IDC_DEBUG_INTEGER               1080
 #define IDC_DEBUG_DOUBLE                1081
+#define IDC_ERROR_COUNTER               1082
 #define IDC_ANALYZER                    1083
-#define IDC_CHECK3                      1084
 #define IDC_GRAPH_CHECK                 1084
 
 // Next default values for new objects

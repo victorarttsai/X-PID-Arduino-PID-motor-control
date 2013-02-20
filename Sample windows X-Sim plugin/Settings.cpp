@@ -24,6 +24,7 @@ extern BOOL enabletimeout;
 int min1, min2, max1, max2, dead1, dead2;
 double p1, i1, d1, p2, i2, d2;
 CButton m_graph;
+byte errorcount=0;
 
 ///////////////////////
 //Analyser Graph Thread
@@ -50,6 +51,18 @@ void cleardiagram()
 {
 	//Zero all last values
 	for(int z=0; z < (analyserwidth-2); z++){lastvaluesinput[z]=49; lastvaluesoutput[z]=49;}
+}
+
+// Generate checksum
+byte SMakeChecksum(byte* command, int size)
+{
+	byte checksum=0;
+	for(int z=0; z < size; z++)
+	{
+		char v1=command[z];
+		checksum ^= command[z];
+	}
+	return checksum;
 }
 
 UINT AnalyserGraphThread(LPVOID param)
@@ -155,11 +168,12 @@ BOOL ClearEEPRom(HANDLE comhandle)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	char command[4]={'X',205,0,0};
+	byte command[5]={'X',205,0,0,0};
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return FALSE;}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return FALSE;}
 	Sleep(100);
 	return TRUE;
 }
@@ -171,13 +185,14 @@ int ReadEEPRomValue(HANDLE comhandle, int mem_address)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	byte response[3];
-	char command[4]={'X',204,0,0};
+	byte response[6];
+	byte command[5]={'X',204,0,0,0};
 	command[2]=mem_address;
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return -1;}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return -1;}
 	// Read the response from the device.
 	success = ReadFile(comhandle, response, 6, &bytesTransferred, NULL);
 	Sleep(10);
@@ -206,14 +221,15 @@ BOOL WriteEEPRomValue(HANDLE comhandle, int mem_address, int byte_value)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	char command[4]={'X',203,0,0};
+	byte command[5]={'X',203,0,0,0};
 	command[2]=mem_address;
 	command[3]=byte_value;
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
 	Sleep(20);
-	if (!success || bytesTransferred != 4){return FALSE;}
+	if (!success || bytesTransferred != 5){return FALSE;}
 	return TRUE;
 }
 
@@ -253,12 +269,13 @@ BOOL RereadXPIDSettings(HANDLE comhandle)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	char command[4]={'X',206,0,0};
+	byte command[5]={'X',206,0,0,0};
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
 	Sleep(20);
-	if (!success || bytesTransferred != 4){return FALSE;}
+	if (!success || bytesTransferred != 5){return FALSE;}
 	return TRUE;
 }
 
@@ -301,18 +318,20 @@ unsigned int GetPidCounter(HANDLE comhandle)
 	BOOL success;
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
-	byte response[6];
-	char command[4]={'X',201,0,0};
+	byte response[7];
+	byte command[5]={'X',201,0,0,0};
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return 0;}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return 0;}
 	// Read the response from the device.
-	success = ReadFile(comhandle, response, 6, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 6){return 0;}
+	success = ReadFile(comhandle, response, 7, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 7){return 0;}
 	if(response[0]=='X' && response[1]==201)
 	{
 		resval=(response[2]*16777216)+(response[3]*65536)+(response[4]*256)+response[5];
+		errorcount=response[6];
 	}
 	return resval;
 }
@@ -323,11 +342,12 @@ BOOL GetDebugValues(HANDLE comhandle, byte* debugbyte, int* debuginteger, double
 	BOOL success;
 	//Ask the firmware on comport for the PID counter value
 	byte response[7];
-	char command[4]={'X',211,0,0};
+	byte command[5]={'X',211,0,0,0};
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return FALSE;}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return FALSE;}
 	// Read the response from the device.
 	success = ReadFile(comhandle, response, 7, &bytesTransferred, NULL);
 	if (!success || bytesTransferred != 7){return FALSE;}
@@ -350,11 +370,12 @@ void GetAnalogueValue(HANDLE comhandle, int* analogue1, int* analogue2)
 	COMMTIMEOUTS timeouts;
 	//Ask the firmware on comport for the PID counter value
 	byte response[6];
-	char command[4]={'X',200,0,0};
+	byte command[5]={'X',200,0,0,0};
+	command[4] = SMakeChecksum(&command[1],3);
 	DWORD bytesTransferred;
 	// Send the command to the device.
-	success = WriteFile(comhandle, &command, 4, &bytesTransferred, NULL);
-	if (!success || bytesTransferred != 4){return;}
+	success = WriteFile(comhandle, &command, 5, &bytesTransferred, NULL);
+	if (!success || bytesTransferred != 5){return;}
 	// Read the response from the device.
 	success = ReadFile(comhandle, response, 6, &bytesTransferred, NULL);
 	if (!success || bytesTransferred != 6){return;}
@@ -374,6 +395,7 @@ CSettings::CSettings(CWnd* pParent /*=NULL*/)
 	currentcomport=-1;
 	oldpidcounter=0;
 	olddiff=0;
+	globalshutdown=false;
 }
 
 CSettings::~CSettings()
@@ -393,6 +415,7 @@ void CSettings::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_TIMEOUT_CHECK, m_enable_timeout);
 	DDX_Control(pDX, IDC_TIMEOUT_EDIT, m_timeout_delay);
 	DDX_Control(pDX, IDC_PID_COUNTER, m_pid_counter);
+	DDX_Control(pDX, IDC_ERROR_COUNTER, m_errorcount);
 	DDX_Control(pDX, IDC_FEEDBACK1, m_feedback1);
 	DDX_Control(pDX, IDC_FEEDBACK2, m_feedback2);
 	DDX_Control(pDX, IDC_DEADZONE1_SPIN, m_deadzone1_spin);
@@ -430,7 +453,7 @@ BEGIN_MESSAGE_MAP(CSettings, CDialog)
 	ON_WM_TIMER()
 	ON_BN_CLICKED(IDC_RENAMEPORT, &CSettings::OnBnClickedRenameport)
 	ON_WM_CLOSE()
-	ON_CBN_SELENDOK(IDC_SCN5COMBO, &CSettings::OnCbnSelendokXpidCombo)
+	ON_CBN_SELENDOK(IDC_XPID_COMBO, &CSettings::OnCbnSelendokXpidCombo)
 	ON_BN_CLICKED(IDC_TIMEOUT_CHECK, &CSettings::OnBnClickedTimeoutCheck)
 	ON_EN_CHANGE(IDC_TIMEOUT_EDIT, &CSettings::OnEnChangeTimeoutEdit)
 	ON_BN_CLICKED(IDC_SETNAME_BUTTON, &CSettings::OnBnClickedSetnameButton)
@@ -502,6 +525,7 @@ BOOL CSettings::OnInitDialog()
 	if(count > 0){m_xpidcombo.SetCurSel(1);}
 	OnCbnSelendokXpidCombo();
 	SetTimer(1,1000,NULL);
+	SetTimer(4,1000,NULL);
 	cleardiagram();
 	//Start Graph
 	pDCA = GetDC();
@@ -530,30 +554,8 @@ void CSettings::OnTimer(UINT_PTR nIDEvent)
 	}
 	if(nIDEvent==1)
 	{
-		unsigned int pidcounter=0;
-		//Show PID counter and the counts per second
 		if(currentcomport != -1)
 		{
-			//Read PID Counter
-			pidcounter=GetPidCounter(xpid_struct[currentcomport].comporthandle);
-			if(pidcounter != 0)
-			{
-				if (oldpidcounter != 0)
-				{
-					int diff=pidcounter-oldpidcounter;
-					if(diff >= 0 && diff < (2 * olddiff))
-					{
-						CString outputstring;
-						outputstring.Format("%d",diff);
-						m_pid_counter.SetWindowText(outputstring);
-					}
-					olddiff=diff;
-				}
-				else
-				{
-					m_pid_counter.SetWindowText("0");
-				}
-			}
 			//Read analogue values
 			GetAnalogueValue(xpid_struct[currentcomport].comporthandle,&analogue1,&analogue2);
 			if(analogue1 != -1 && analogue2 != -1)
@@ -592,7 +594,6 @@ void CSettings::OnTimer(UINT_PTR nIDEvent)
 			outstring.Format("%d",int(noffset));
 			outstring=outstring+" \%";
 			m_feedback_scaled_2.SetWindowText(outstring);
-			oldpidcounter=pidcounter;
 		}
 	}
 	if(nIDEvent==2 && currentcomport != -1)
@@ -689,6 +690,37 @@ void CSettings::OnTimer(UINT_PTR nIDEvent)
 			}
 		}
 	}
+	if(nIDEvent==4)
+	{
+		unsigned int pidcounter=0;
+		//Show PID counter and the counts per second
+		if(currentcomport != -1)
+		{
+			//Read PID Counter
+			pidcounter=GetPidCounter(xpid_struct[currentcomport].comporthandle);
+			if(pidcounter != 0)
+			{
+				if (oldpidcounter != 0)
+				{
+					int diff=pidcounter-oldpidcounter;
+					if(diff >= 0 && diff < (2 * olddiff))
+					{
+						CString outputstring;
+						outputstring.Format("%d",diff);
+						m_pid_counter.SetWindowText(outputstring);
+						outputstring.Format("%d",errorcount);
+						m_errorcount.SetWindowText(outputstring);
+					}
+					olddiff=diff;
+				}
+				else
+				{
+					m_pid_counter.SetWindowText("0");
+				}
+				oldpidcounter=pidcounter;
+			}
+		}
+	}
 	CDialog::OnTimer(nIDEvent);
 }
 
@@ -725,6 +757,10 @@ void CSettings::OnBnClickedRenameport()
 
 void CSettings::OnBnClickedCloseButton()
 {
+	KillTimer(1);
+	KillTimer(2);
+	KillTimer(3);
+	KillTimer(4);
 	globalshutdown=true;
 	for(int z=0; z < 100; z++)
 	{
@@ -732,11 +768,9 @@ void CSettings::OnBnClickedCloseButton()
 		{
 			break;
 		}
+		ProcessMessages();
 		Sleep(50);
 	}
-	KillTimer(1);
-	KillTimer(2);
-	KillTimer(3);
 	//Check empty rename boxes
 	if(currentcomport != -1)
 	{
@@ -761,6 +795,10 @@ void CSettings::OnBnClickedCloseButton()
 
 void CSettings::OnClose()
 {
+	KillTimer(1);
+	KillTimer(2);
+	KillTimer(3);
+	KillTimer(4);
 	globalshutdown=true;
 	for(int z=0; z < 100; z++)
 	{
@@ -768,11 +806,9 @@ void CSettings::OnClose()
 		{
 			break;
 		}
+		ProcessMessages();
 		Sleep(50);
 	}
-	KillTimer(1);
-	KillTimer(2);
-	KillTimer(3);
 	//Check empty rename boxes
 	if(currentcomport != -1)
 	{
@@ -804,6 +840,19 @@ void CSettings::SaveSingleXpidRegistry(int comportnumer)
 	regMyReg["renameXPID2"]=xpid_struct[comportnumer].xpidsetting2.renameport;
 	regMyReg["renamename2"]=xpid_struct[comportnumer].xpidsetting2.renamename;
 	regMyReg.Close();
+}
+
+void CSettings::ProcessMessages(void)
+{
+	CWinApp* pApp = AfxGetApp();
+	MSG msg;
+	int count =0;
+	while ( PeekMessage ( &msg, NULL, 0, 0, PM_NOREMOVE ))
+	{
+		pApp->PumpMessage();
+		count++;
+		if(count > 30){return;}
+	}
 }
 
 void CSettings::PrintSettings()

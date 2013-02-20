@@ -1,4 +1,4 @@
-//Board = Arduino Uno
+//Board = Arduino Nano w/ ATmega328
 #define ARDUINO 103
 #define __AVR_ATmega328P__
 #define F_CPU 16000000L
@@ -37,6 +37,7 @@ void EEPromToSerial(int eeprom_address);
 void ClearEEProm();
 void ParseCommand();
 void FeedbackPotWorker();
+bool CheckChecksum();
 void SerialWorker();
 void CalculateMotorDirection();
 int updateMotor1Pid(int targetPosition, int currentPosition);
@@ -54,6 +55,6 @@ void UnsetMotor2Inp2();
 void SetHBridgeControl();
 //already defined in arduno.h
 
-#include "C:\Program Files\arduino\hardware\arduino\variants\standard\pins_arduino.h" 
+#include "C:\Program Files\arduino\hardware\arduino\variants\eightanaloginputs\pins_arduino.h" 
 #include "C:\Program Files\arduino\hardware\arduino\cores\arduino\arduino.h"
 #include "C:\Users\SirNoName\Documents\Arduino\XPID\XPID.ino"

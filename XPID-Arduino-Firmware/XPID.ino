@@ -1,28 +1,31 @@
 /*
 	X-Sim PID
 	This program will control two motor H-Bridge with analogue feedback and serial target input value
-	Target is a Arduino UNO R3 but should work on all Arduino with Atmel 328
+	Target is a Arduino UNO R3 but should work on all Arduino with Atmel 328, Arduinos with an FTDI serial chip need a change to lower baudrates of 57600
 	Copyright (c) 2013 Martin Wiedenbauer, particial use is only allowed with a reference link to the x-sim.de project
 
-	Command input protocol	(always 4 bytes, beginning with 'X' character)
-	'X' 1 H L				Set motor 1 position to High and Low value 0 to 1023
-	'X' 2 H L				Set motor 2 position to High and Low value 0 to 1023
-	'X' 3 H L				Set motor 1 P Proportional value to High and Low value
-	'X' 4 H L				Set motor 2 P Proportional value to High and Low value
-	'X' 5 H L				Set motor 1 I Integral value to High and Low value
-	'X' 6 H L				Set motor 2 I Integral value to High and Low value
-	'X' 7 H L				Set motor 1 D Derivative value to High and Low value
-	'X' 8 H L				Set motor 2 D Derivative value to High and Low value
+	Command input protocol	(always 5 bytes, beginning with 'X' character and ends with a XOR checksum)
+	'X' 1 H L C				Set motor 1 position to High and Low value 0 to 1023
+	'X' 2 H L C				Set motor 2 position to High and Low value 0 to 1023
+	'X' 3 H L C				Set motor 1 P Proportional value to High and Low value
+	'X' 4 H L C				Set motor 2 P Proportional value to High and Low value
+	'X' 5 H L C				Set motor 1 I Integral value to High and Low value
+	'X' 6 H L C				Set motor 2 I Integral value to High and Low value
+	'X' 7 H L C				Set motor 1 D Derivative value to High and Low value
+	'X' 8 H L C				Set motor 2 D Derivative value to High and Low value
 
-	'X' 200 0 0				Send back over serial port both analogue feedback raw values
-	'X' 201 0 0				Send back over serial port the current pid count
-	'X' 202 0 0				Send back over serial port the firmware version (used for x-sim autodetection)
-	'X' 203 M V				Write EEPROM on address M (only 0 to 255 of 1024 Bytes of the EEPROM) with new value V
-	'X' 204 M 0				Read EEPROM on memory address M (only 0 to 255 of 1024 Bytes of the EEPROM), send back over serial the value
-	'X' 205 0 0				Clear EEPROM
-	'X' 206 0 0				Reread the whole EEPRom and store settings into fitting variables
-	'X' 207 0 0				Disable power on motor 1
-	'X' 208 0 0				Disable power on motor 2
+	'X' 200 0 0 C			Send back over serial port both analogue feedback raw values
+	'X' 201 0 0 C			Send back over serial port the current pid count
+	'X' 202 0 0 C			Send back over serial port the firmware version (used for x-sim autodetection)
+	'X' 203 M V C			Write EEPROM on address M (only 0 to 255 of 1024 Bytes of the EEPROM) with new value V
+	'X' 204 M 0 C			Read EEPROM on memory address M (only 0 to 255 of 1024 Bytes of the EEPROM), send back over serial the value
+	'X' 205 0 0 C			Clear EEPROM
+	'X' 206 0 0 C			Reread the whole EEPRom and store settings into fitting variables
+	'X' 207 0 0	C			Disable power on motor 1
+	'X' 208 0 0	C			Disable power on motor 2
+	'X' 209 0 0	C			Enable power on motor 1
+	'X' 210 0 0	C			Enable power on motor 2
+	'X' 211 0 0	C			Send all debug values
 	
 	EEPROM memory map
 	00		empty eeprom detection, 111 if set, all other are indicator to set default
@@ -62,7 +65,6 @@
 
 //Some speed test switches for testers ;)
 #define FASTADC  1 //Hack to speed up the arduino analogue read function, comment out with // to disable this hack
-#define FASTLOOP 1 //Hack to speed up the arduino framework loop delay, set to 0 to disable this feature
 
 // defines for setting and clearing register bits
 #ifndef cbi
@@ -82,7 +84,7 @@
 
 //Firmware version info
 int firmaware_version_mayor=1;
-int firmware_version_minor =0;
+int firmware_version_minor =2;
 
 int currentanalogue1 = 0;
 int currentanalogue2 = 0;
@@ -96,8 +98,9 @@ unsigned long lhigh=0;
 unsigned long llow=0;
 int buffer=0;
 int buffercount=-1;
-int commandbuffer[4]={0};
+int commandbuffer[5]={0};
 unsigned long pidcount	= 0;		// unsigned 32bit, 0 to 4,294,967,295
+byte errorcount	= 0;		// serial receive error detected by checksum
 
 // fixed DATA for direct port manipulation, exchange here each value if your h-Bridge is connected to another port pin
 // This pinning overview is to avoid the slow pin switching of the arduino libraries
@@ -156,6 +159,7 @@ double integrated_motor_1_error = 0;
 double integrated_motor_2_error = 0;
 float last_motor_1_error		= 0;
 float last_motor_2_error		= 0; 
+int disable						= 1; //Motor stop flag
 
 byte debugbyte =0;				//This values are for debug purpose and can be send via
 int debuginteger =0;			//the SendDebug serial 211 command to the X-Sim plugin
@@ -163,9 +167,8 @@ double debugdouble =0;
 
 void setup()
 {
-	Serial.begin(115200);
-	delay(1000);
-	Serial.begin(115200);
+	Serial.begin(115200);   //Uncomment this for arduino UNO without ftdi serial chip
+	//Serial.begin(9600);  //Uncomment this for arduino nano, arduino with ftdi chip or arduino duemilanove
 	portdstatus=PORTD;
 	pinMode(ControlPinM1Inp1, OUTPUT);
 	pinMode(ControlPinM1Inp2, OUTPUT);
@@ -179,6 +182,7 @@ void setup()
 	UnsetMotor1Inp2();
 	UnsetMotor2Inp1();
 	UnsetMotor2Inp2();
+	disable=1;
 	TCCR1B = TCCR1B & 0b11111100; //This is a hack for changing the PWM frequency to a higher value, if removed it is 490Hz
 #if FASTADC
 	// set analogue prescale to 16
@@ -274,6 +278,7 @@ void SendPidCount()
 	Serial.write(int(hlow));
 	Serial.write(int(lhigh));
 	Serial.write(int(llow));
+	Serial.write(errorcount);
 }
 
 void SendDebugValues()
@@ -323,67 +328,77 @@ void ParseCommand()
 	if(commandbuffer[0]==1)			//Set motor 1 position to High and Low value 0 to 1023
 	{
 		target1=(commandbuffer[1]*256)+commandbuffer[2];
+		disable=0;
+		return;
 	}
 	if(commandbuffer[0]==2)			//Set motor 2 position to High and Low value 0 to 1023
 	{
 		target2=(commandbuffer[1]*256)+commandbuffer[2];
+		disable=0;
+		return;
 	}
 
 	if(commandbuffer[0]==200)		//Send both analogue feedback raw values
 	{
 		SendAnalogueFeedback(currentanalogue1, currentanalogue2);
+		return;
 	}
 	if(commandbuffer[0]==201)		//Send PID count
 	{
 		SendPidCount();
+		return;
 	}
 	if(commandbuffer[0]==202)		//Send Firmware Version
 	{
 		SendFirmwareVersion();
+		return;
 	}
 	if(commandbuffer[0]==203)		//Write EEPROM
 	{
 		EEPROM.write(commandbuffer[1],uint8_t(commandbuffer[2]));
+		return;
 	}
 	if(commandbuffer[0]==204)		//Read EEPROM
 	{
 		EEPromToSerial(commandbuffer[1]);
+		return;
 	}
 	if(commandbuffer[0]==205)		//Clear EEPROM
 	{
 		ClearEEProm();
+		return;
 	}
 	if(commandbuffer[0]==206)		//Reread the whole EEPRom and store settings into fitting variables
 	{
 		ReadEEProm();
+		return;
 	}
-	if(commandbuffer[0]==207)		//Disable power on motor 1
+	if(commandbuffer[0]==207 || commandbuffer[0]==208)		//Disable power on both motor
 	{
 		analogWrite(PWMPinM1,	  0);
 		UnsetMotor1Inp1();
 		UnsetMotor1Inp2();
-	}
-	if(commandbuffer[0]==208)		//Disable power on motor 2
-	{
 		analogWrite(PWMPinM2,	  0);
 		UnsetMotor2Inp1();
 		UnsetMotor2Inp2();
+		disable=1;
+		return;
 	}
-	if(commandbuffer[0]==209)		//Enable power on motor 1
+	if(commandbuffer[0]==209 || commandbuffer[0]==210)		//Enable power on both motor
 	{
 		analogWrite(PWMPinM1,	  128);
 		UnsetMotor1Inp1();
 		UnsetMotor1Inp2();
-	}
-	if(commandbuffer[0]==210)		//Enable power on motor 2
-	{
 		analogWrite(PWMPinM2,	  128);
 		UnsetMotor2Inp1();
 		UnsetMotor2Inp2();
+		disable=0;
+		return;
 	}
 	if(commandbuffer[0]==211)		//Send all debug values
 	{
 		SendDebugValues();
+		return;
 	}
 }
 
@@ -392,6 +407,18 @@ void FeedbackPotWorker()
 	currentanalogue1 = analogRead(FeedbackPin1);
 	currentanalogue2 = analogRead(FeedbackPin2);
 	//Notice: Minimum and maximum scaling calculation is done in the PC plugin with faster float support
+}
+
+bool CheckChecksum() //Atmel chips have a comport error rate of 2%, so we need here a checksum
+{
+	byte checksum=0;
+	for(int z=0; z < 3; z++)
+	{
+		byte val=commandbuffer[z];
+		checksum ^= val;
+	}
+	if(checksum==commandbuffer[3]){return true;}
+	return false;
 }
 
 void SerialWorker()
@@ -408,7 +435,11 @@ void SerialWorker()
 			buffer = Serial.read();
 			commandbuffer[buffercount]=buffer;
 			buffercount++;
-			if(buffercount > 2){ParseCommand(); buffercount=-1;}
+			if(buffercount > 3)
+			{
+				if(CheckChecksum()==true){ParseCommand();}else{errorcount++;}
+				buffercount=-1;
+			}
 		}
 	}
 }
@@ -493,7 +524,7 @@ void SetPWM()
 	}
 	else
 	{
-		analogWrite(PWMPinM1, 255);
+		analogWrite(PWMPinM1, 0);
 	}
 	if(motordirection2 != 0)
 	{
@@ -501,7 +532,7 @@ void SetPWM()
 	}
 	else
 	{
-		analogWrite(PWMPinM2, 255);
+		analogWrite(PWMPinM2, 0);
 	}
 }
 
@@ -611,14 +642,17 @@ void loop()
 	//Read all stored PID and Feedback settings
 	ReadEEProm();
 	//Program loop
-	while (1==FASTLOOP) //Important hack: Use this own real time loop code without arduino framework delays
+	while (1==1) //Important hack: Use this own real time loop code without arduino framework delays
 	{
 		FeedbackPotWorker();
 		SerialWorker();
 		CalculatePID();
 		CalculateMotorDirection();
-		SetPWM();
-		SetHBridgeControl();
+		if(disable==0)
+		{
+			SetPWM();
+			SetHBridgeControl();
+		}
 		pidcount++;
 	}
 }
