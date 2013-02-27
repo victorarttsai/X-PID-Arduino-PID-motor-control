@@ -41,7 +41,11 @@
 	17-18	P component of motor 2
 	19-20	I component of motor 2
 	21-22	D component of motor 2
-
+	23		pwm1 offset
+	24		pwm2 offset
+	25		pwm1 maximum
+	26		pwm2 maximum
+	27		pwm frequency divider (1,8,64)
 
 	Pin out of arduino for H-Bridge
 
@@ -84,7 +88,7 @@
 
 //Firmware version info
 int firmaware_version_mayor=1;
-int firmware_version_minor =2;
+int firmware_version_minor =3;
 
 int currentanalogue1 = 0;
 int currentanalogue2 = 0;
@@ -160,15 +164,66 @@ double integrated_motor_2_error = 0;
 float last_motor_1_error		= 0;
 float last_motor_2_error		= 0; 
 int disable						= 1; //Motor stop flag
+int pwm1offset					= 50;
+int pwm2offset					= 50;
+int pwm1maximum					= 255;
+int pwm2maximum					= 255;
+float pwm1divider				= 0.8039;
+float pwm2divider				= 0.8039;
+float pwmfloat					= 0;
+int pwmfrequencydivider			= 1; //31kHz
 
 byte debugbyte =0;				//This values are for debug purpose and can be send via
 int debuginteger =0;			//the SendDebug serial 211 command to the X-Sim plugin
-double debugdouble =0;			
+double debugdouble =0;	
+
+void setPwmFrequency(int pin, int divisor) 
+{
+	byte mode;
+	if(pin == 5 || pin == 6 || pin == 9 || pin == 10) 
+	{
+		switch(divisor) 
+		{
+			case 1: mode = 0x01; break;
+			case 8: mode = 0x02; break;
+			case 64: mode = 0x03; break;
+			case 256: mode = 0x04; break;
+			case 1024: mode = 0x05; break;
+			default: return;
+		}
+		if(pin == 5 || pin == 6) 
+		{
+			TCCR0B = TCCR0B & 0b11111000 | mode;
+		} 
+		else 
+		{
+			TCCR1B = TCCR1B & 0b11111000 | mode;
+		}
+	} 
+	else 
+	{
+		if(pin == 3 || pin == 11) 
+		{
+			switch(divisor) 
+			{
+				case 1: mode = 0x01; break;
+				case 8: mode = 0x02; break;
+				case 32: mode = 0x03; break;
+				case 64: mode = 0x04; break;
+				case 128: mode = 0x05; break;
+				case 256: mode = 0x06; break;
+				case 1024: mode = 0x7; break;
+				default: return;
+			}
+			TCCR2B = TCCR2B & 0b11111000 | mode;
+		}
+	}
+}
 
 void setup()
 {
-	Serial.begin(115200);   //Uncomment this for arduino UNO without ftdi serial chip
-	//Serial.begin(9600);  //Uncomment this for arduino nano, arduino with ftdi chip or arduino duemilanove
+	//Serial.begin(115200);   //Uncomment this for arduino UNO without ftdi serial chip
+	Serial.begin(9600);  //Uncomment this for arduino nano, arduino with ftdi chip or arduino duemilanove
 	portdstatus=PORTD;
 	pinMode(ControlPinM1Inp1, OUTPUT);
 	pinMode(ControlPinM1Inp2, OUTPUT);
@@ -183,7 +238,9 @@ void setup()
 	UnsetMotor2Inp1();
 	UnsetMotor2Inp2();
 	disable=1;
-	TCCR1B = TCCR1B & 0b11111100; //This is a hack for changing the PWM frequency to a higher value, if removed it is 490Hz
+	//TCCR1B = TCCR1B & 0b11111100; //This is a hack for changing the PWM frequency to a higher value, if removed it is 490Hz
+	setPwmFrequency(9, 1);
+	setPwmFrequency(10, 1);
 #if FASTADC
 	// set analogue prescale to 16
 	sbi(ADCSRA,ADPS2) ;
@@ -225,6 +282,24 @@ void WriteEEProm()
 	WriteEEPRomWord(17,int(proportional2*10.000));
 	WriteEEPRomWord(19,int(integral2*10.000));
 	WriteEEPRomWord(21,int(derivative2*10.000));
+	if(pwm1offset > 180 || pwm2offset > 180 || pwm1maximum < 200 || pwm2maximum < 200)
+	{
+		pwm1offset=50;
+		pwm2offset=50;
+		pwm1maximum=255;
+		pwm2maximum=255;
+		pwm1divider=0.8039;
+		pwm2divider=0.8039;
+	}
+	EEPROM.write(23,pwm1offset);
+	EEPROM.write(24,pwm2offset);
+	EEPROM.write(25,pwm1maximum);
+	EEPROM.write(26,pwm2maximum);
+	if(pwmfrequencydivider != 1 && pwmfrequencydivider != 8)
+	{
+		pwmfrequencydivider=1;
+	}
+	EEPROM.write(27,pwmfrequencydivider);
 }
 
 void ReadEEProm()
@@ -247,6 +322,38 @@ void ReadEEProm()
 	proportional2=double(ReadEEPRomWord(17))/10.000;
 	integral2=double(ReadEEPRomWord(19))/10.000;
 	derivative2=double(ReadEEPRomWord(21))/10.000;
+	pwm1offset=EEPROM.read(23);
+	pwm2offset=EEPROM.read(24);
+	pwm1maximum=EEPROM.read(25);
+	pwm2maximum=EEPROM.read(26);
+	if(pwm1offset > 180 || pwm2offset > 180 || pwm1maximum < 200 || pwm2maximum < 200)
+	{
+		pwm1offset=50;
+		pwm2offset=50;
+		pwm1maximum=255;
+		pwm2maximum=255;
+		pwm1divider=0.8039;
+		pwm2divider=0.8039;
+		EEPROM.write(23,pwm1offset);
+		EEPROM.write(24,pwm2offset);
+		EEPROM.write(25,pwm1maximum);
+		EEPROM.write(26,pwm2maximum);
+	}
+	else
+	{
+		pwmfloat=float(pwm1maximum-pwm1offset);
+		pwm1divider=pwmfloat/255.000;
+		pwmfloat=float(pwm2maximum-pwm2offset);
+		pwm2divider=pwmfloat/255.000;
+	}
+	pwmfrequencydivider=EEPROM.read(27);
+	if(pwmfrequencydivider != 1 && pwmfrequencydivider != 8)
+	{
+		pwmfrequencydivider=1;
+		EEPROM.write(27,pwmfrequencydivider);
+	}
+	setPwmFrequency(9, pwmfrequencydivider);
+	setPwmFrequency(10, pwmfrequencydivider);
 }
 
 void SendAnalogueFeedback(int analogue1, int analogue2)
@@ -516,8 +623,19 @@ void CalculatePID()
 
 void SetPWM()
 {
-	debuginteger=motordirection1;
-	debugdouble=OutputM1;
+	//Calculate pwm offset and maximum
+	pwmfloat=OutputM1;
+	pwmfloat*=pwm1divider;
+	pwmfloat+=float(pwm1offset);
+	OutputM1=pwmfloat;
+	if(OutputM1 > pwm1maximum){OutputM1=pwm1maximum;}
+	pwmfloat=OutputM2;
+	pwmfloat*=pwm2divider;
+	pwmfloat+=float(pwm2offset);
+	OutputM2=pwmfloat;
+	if(OutputM2 > pwm2maximum){OutputM2=pwm2maximum;}
+
+	//Set hardware pwm
 	if(motordirection1 != 0)
 	{
 		analogWrite(PWMPinM1, int(OutputM1));

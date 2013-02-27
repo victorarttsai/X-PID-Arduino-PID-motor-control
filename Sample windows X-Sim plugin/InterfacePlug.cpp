@@ -448,6 +448,8 @@ BOOL MoveActuator(int comportnumber, int portnumber, unsigned int integervalue)
 		xpid_struct[comportnumber].xpidpresent=false;
 		CloseHandle(xpid_struct[comportnumber].comporthandle);
 		xpid_struct[comportnumber].comporthandle=INVALID_HANDLE_VALUE;
+		DeviceDetected--;
+		if(DeviceDetected < 0){DeviceDetected=0;}
 	}
 	LeaveCriticalSection(&CriticalSection);
 	return success;

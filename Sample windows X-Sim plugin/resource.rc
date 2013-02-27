@@ -51,8 +51,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,1
- PRODUCTVERSION 1,0,0,1
+ FILEVERSION 1,3,0,1
+ PRODUCTVERSION 1,3,0,1
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -67,14 +67,14 @@ BEGIN
     BEGIN
         BLOCK "040704b0"
         BEGIN
-            VALUE "Comments", "Interface Plugin for Arduino Uno XPID jrk interfaces"
-            VALUE "FileDescription", "Interface Plugin for Arduino Uno XPID jrk interfaces"
-            VALUE "FileVersion", "1.0.0.1"
+            VALUE "Comments", "Interface Plugin for Arduino Uno XPID interfaces"
+            VALUE "FileDescription", "Interface Plugin for Arduino Uno XPID interfaces"
+            VALUE "FileVersion", "1.3.0.1"
             VALUE "InternalName", "Interface Plugin for Arduino Uno XPID interfaces"
-            VALUE "LegalCopyright", "Copyright © 2012 Martin Wiedenbauer"
+            VALUE "LegalCopyright", "Copyright © 2013 Martin Wiedenbauer"
             VALUE "OriginalFilename", "ArduinoXPID.dll"
             VALUE "ProductName", "Converter Interfaceplug"
-            VALUE "ProductVersion", "1.0.0.1"
+            VALUE "ProductVersion", "1.3.0.1"
         END
     END
     BLOCK "VarFileInfo"
@@ -146,21 +146,21 @@ BEGIN
     LTEXT           "0",IDC_P1_TEXT,414,173,16,8
     CONTROL         "",IDC_P1_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,171,11,13
     LTEXT           "Proportional value:",IDC_STATIC,341,173,62,8
-    LTEXT           "0",IDC_I1_TEXT,414,191,16,8
-    CONTROL         "",IDC_I1_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,189,11,13
-    LTEXT           "Integral value:",IDC_STATIC,342,191,48,8
-    LTEXT           "0",IDC_D1_TEXT,544,173,16,8
-    CONTROL         "",IDC_D1_SPIN,"msctls_updown32",UDS_ARROWKEYS,563,171,11,13
-    LTEXT           "Derivative value:",IDC_STATIC,472,173,56,8
+    LTEXT           "0",IDC_I1_TEXT,414,187,16,8
+    CONTROL         "",IDC_I1_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,185,11,13
+    LTEXT           "Integral value:",IDC_STATIC,341,187,48,8
+    LTEXT           "0",IDC_D1_TEXT,414,202,16,8
+    CONTROL         "",IDC_D1_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,200,11,13
+    LTEXT           "Derivative value:",IDC_STATIC,341,202,56,8
     LTEXT           "0",IDC_P2_TEXT,414,240,16,8
     CONTROL         "",IDC_P2_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,238,11,13
-    LTEXT           "Proportional value:",IDC_STATIC,342,240,62,8
-    LTEXT           "0",IDC_I2_TEXT,414,257,16,8
-    CONTROL         "",IDC_I2_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,256,11,13
-    LTEXT           "Integral value:",IDC_STATIC,342,257,48,8
-    LTEXT           "0",IDC_D2_TEXT,544,240,16,8
-    CONTROL         "",IDC_D2_SPIN,"msctls_updown32",UDS_ARROWKEYS,564,238,11,13
-    LTEXT           "Derivative value:",IDC_STATIC,472,240,56,8
+    LTEXT           "Proportional value:",IDC_STATIC,341,240,62,8
+    LTEXT           "0",IDC_I2_TEXT,414,254,16,8
+    CONTROL         "",IDC_I2_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,253,11,13
+    LTEXT           "Integral value:",IDC_STATIC,341,254,48,8
+    LTEXT           "0",IDC_D2_TEXT,414,269,16,8
+    CONTROL         "",IDC_D2_SPIN,"msctls_updown32",UDS_ARROWKEYS,432,267,11,13
+    LTEXT           "Derivative value:",IDC_STATIC,341,269,56,8
     PUSHBUTTON      "reset feedback 1",IDC_RESET_1,237,200,81,12
     PUSHBUTTON      "reset feedback 2",IDC_RESET_2,237,267,81,12
     LTEXT           "",IDC_DEBUG_BYTE,440,285,142,8,NOT WS_VISIBLE
@@ -171,6 +171,26 @@ BEGIN
     CONTROL         "Enable graph",IDC_GRAPH_CHECK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,288,71,58,10
     LTEXT           "Serial error count:",IDC_STATIC,184,144,59,8
     LTEXT           "0",IDC_ERROR_COUNTER,252,144,63,8
+    LTEXT           "0",IDC_PWM1_OFFSET_TEXT,534,173,16,8
+    CONTROL         "",IDC_PWM1_OFFSET_SPIN,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,553,171,11,13
+    LTEXT           "PWM power offset:",IDC_STATIC,456,173,63,8
+    LTEXT           "0",IDC_PWM1_MAXIMUM_TEXT,534,187,16,8
+    CONTROL         "",IDC_PWM1_MAXIMUM_SPIN,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,553,185,11,13
+    LTEXT           "PWM power maximum:",IDC_STATIC,456,187,73,8
+    PUSHBUTTON      "reset PID to default",IDC_RESET_PID1,455,200,81,12
+    LTEXT           "0",IDC_PWM2_OFFSET_TEXT,534,240,16,8
+    CONTROL         "",IDC_PWM2_OFFSET_SPIN,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,553,238,11,13
+    LTEXT           "PWM power offset:",IDC_STATIC,456,240,63,8
+    LTEXT           "0",IDC_PWM2_MAXIMUM_TEXT,534,254,16,8
+    CONTROL         "",IDC_PWM2_MAXIMUM_SPIN,"msctls_updown32",UDS_SETBUDDYINT | UDS_AUTOBUDDY | UDS_ARROWKEYS,553,252,11,13
+    LTEXT           "PWM power maximum:",IDC_STATIC,456,254,73,8
+    PUSHBUTTON      "reset PID to default",IDC_RESET_PID2,455,267,81,12
+    LTEXT           "%",IDC_STATIC,567,173,8,8
+    LTEXT           "%",IDC_STATIC,567,187,8,8
+    LTEXT           "%",IDC_STATIC,567,240,8,8
+    LTEXT           "%",IDC_STATIC,567,254,8,8
+    CONTROL         "PWM frequency 31250Hz",IDC_RADIO1,"Button",BS_AUTORADIOBUTTON | WS_GROUP,344,143,97,10
+    CONTROL         "PWM frequency 3906.25Hz",IDC_RADIO2,"Button",BS_AUTORADIOBUTTON,463,143,103,10
 END
 
 

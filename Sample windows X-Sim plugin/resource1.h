@@ -82,6 +82,18 @@
 #define IDC_ERROR_COUNTER               1082
 #define IDC_ANALYZER                    1083
 #define IDC_GRAPH_CHECK                 1084
+#define IDC_PWM1_OFFSET_TEXT            1085
+#define IDC_PWM1_OFFSET_SPIN            1086
+#define IDC_PWM1_MAXIMUM_TEXT           1087
+#define IDC_PWM1_MAXIMUM_SPIN           1088
+#define IDC_RESET_PID1                  1089
+#define IDC_PWM2_OFFSET_TEXT            1090
+#define IDC_PWM2_OFFSET_SPIN            1091
+#define IDC_PWM2_MAXIMUM_TEXT           1092
+#define IDC_PWM2_MAXIMUM_SPIN           1093
+#define IDC_RESET_PID2                  1094
+#define IDC_RADIO1                      1095
+#define IDC_RADIO2                      1096
 
 // Next default values for new objects
 // 
@@ -89,7 +101,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        110
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1085
+#define _APS_NEXT_CONTROL_VALUE         1096
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

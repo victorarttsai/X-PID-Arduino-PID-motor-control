@@ -23,6 +23,7 @@ extern int timeoutdelay;
 extern BOOL enabletimeout;
 int min1, min2, max1, max2, dead1, dead2;
 double p1, i1, d1, p2, i2, d2;
+int pwm1offset, pwm2offset, pwm1maximum, pwm2maximum;
 CButton m_graph;
 byte errorcount=0;
 
@@ -46,6 +47,7 @@ CStaticMemDC m_diagram;
 CWinThread*	analysergraphthreadhandle;
 int currentcomport;
 int currentoutput;
+int pwmfrequencydivider=1;
 
 void cleardiagram()
 {
@@ -259,6 +261,11 @@ void WriteXPIDSettings(HANDLE comhandle)
 	WriteEEPRomWord(comhandle,17,int(p2*10.000));
 	WriteEEPRomWord(comhandle,19,int(i2*10.000));
 	WriteEEPRomWord(comhandle,21,int(d2*10.000));
+	WriteEEPRomValue(comhandle,23,int(float(float(pwm1offset)*2.550)));
+	WriteEEPRomValue(comhandle,24,int(float(float(pwm2offset)*2.550)));
+	WriteEEPRomValue(comhandle,25,int(float(float(pwm1maximum)*2.550)));
+	WriteEEPRomValue(comhandle,26,int(float(float(pwm2maximum)*2.550)));
+	WriteEEPRomValue(comhandle,27,pwmfrequencydivider);
 	return;
 }
 
@@ -294,6 +301,11 @@ void GetXPIDSettings(HANDLE comhandle)
 	p2=double(ReadEEPRomWord(comhandle,17))/10.000;
 	i2=double(ReadEEPRomWord(comhandle,19))/10.000;
 	d2=double(ReadEEPRomWord(comhandle,21))/10.000;
+	pwm1offset=int(float(ReadEEPRomValue(comhandle,23))/2.550);
+	pwm2offset=int(float(ReadEEPRomValue(comhandle,24))/2.550);
+	pwm1maximum=int(float(ReadEEPRomValue(comhandle,25))/2.550);
+	pwm2maximum=int(float(ReadEEPRomValue(comhandle,26))/2.550);
+	pwmfrequencydivider=ReadEEPRomValue(comhandle,27);
 	return;
 }
 
@@ -445,6 +457,10 @@ void CSettings::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_I2_TEXT, m_i2_text);
 	DDX_Control(pDX, IDC_ANALYZER, m_diagram);
 	DDX_Control(pDX, IDC_GRAPH_CHECK, m_graph);
+	DDX_Control(pDX, IDC_PWM1_OFFSET_SPIN, m_pwm1_offset_spin);
+	DDX_Control(pDX, IDC_PWM1_MAXIMUM_SPIN, m_pwm1_maximum_spin);
+	DDX_Control(pDX, IDC_PWM2_OFFSET_SPIN, m_pwm2_offset_spin);
+	DDX_Control(pDX, IDC_PWM2_MAXIMUM_SPIN, m_pwm2_maximum_spin);
 }
 
 
@@ -474,6 +490,14 @@ BEGIN_MESSAGE_MAP(CSettings, CDialog)
 	ON_BN_CLICKED(IDC_RESET_2, &CSettings::OnBnClickedReset2)
 	ON_BN_CLICKED(IDC_ENABLE_DEBUG, &CSettings::OnBnClickedEnableDebug)
 	ON_BN_CLICKED(IDC_GRAPH_CHECK, &CSettings::OnBnClickedGraphCheck)
+	ON_BN_CLICKED(IDC_RESET_PID1, &CSettings::OnBnClickedResetPid1)
+	ON_BN_CLICKED(IDC_RESET_PID2, &CSettings::OnBnClickedResetPid2)
+	ON_NOTIFY(UDN_DELTAPOS, IDC_PWM1_OFFSET_SPIN, &CSettings::OnDeltaposPwm1OffsetSpin)
+	ON_NOTIFY(UDN_DELTAPOS, IDC_PWM1_MAXIMUM_SPIN, &CSettings::OnDeltaposPwm1MaximumSpin)
+	ON_NOTIFY(UDN_DELTAPOS, IDC_PWM2_OFFSET_SPIN, &CSettings::OnDeltaposPwm2OffsetSpin)
+	ON_NOTIFY(UDN_DELTAPOS, IDC_PWM2_MAXIMUM_SPIN, &CSettings::OnDeltaposPwm2MaximumSpin)
+	ON_BN_CLICKED(IDC_RADIO1, &CSettings::OnBnClickedRadio1)
+	ON_BN_CLICKED(IDC_RADIO2, &CSettings::OnBnClickedRadio2)
 END_MESSAGE_MAP()
 
 
@@ -492,6 +516,10 @@ BOOL CSettings::OnInitDialog()
 	m_i2_spin.SetRange32(0,100);
 	m_d1_spin.SetRange32(0,100);
 	m_d2_spin.SetRange32(0,100);
+	m_pwm1_offset_spin.SetRange32(0,70);
+	m_pwm2_offset_spin.SetRange32(0,70);
+	m_pwm1_maximum_spin.SetRange32(80,100);
+	m_pwm2_maximum_spin.SetRange32(80,100);
 	//Fill combo
 	int count=xpid_struct.size();
 	for(int z=0; z < count; z++)
@@ -660,6 +688,44 @@ void CSettings::OnTimer(UINT_PTR nIDEvent)
 			outstring.Format("%.1f",d2);
 			m_d2_text.SetWindowText(outstring);
 			change=true;
+		}
+		delta1=m_pwm1_offset_spin.GetPos32();
+		if(delta1 != pwm1offset)
+		{
+			pwm1offset=delta1;
+			change=true;
+		}
+		delta1=m_pwm2_offset_spin.GetPos32();
+		if(delta1 != pwm2offset)
+		{
+			pwm2offset=delta1;
+			change=true;
+		}
+		delta1=m_pwm1_maximum_spin.GetPos32();
+		if(delta1 != pwm1maximum)
+		{
+			pwm1maximum=delta1;
+			change=true;
+		}
+		delta1=m_pwm2_maximum_spin.GetPos32();
+		if(delta1 != pwm2maximum)
+		{
+			pwm2maximum=delta1;
+			change=true;
+		}
+		delta1=GetCheckedRadioButton(IDC_RADIO1, IDC_RADIO2);
+		if(delta1==IDC_RADIO1 && pwmfrequencydivider==8)
+		{
+			pwmfrequencydivider=1;
+			change=true;
+		}
+		else
+		{
+			if(delta1==IDC_RADIO2 && pwmfrequencydivider==1)
+			{
+				pwmfrequencydivider=8;
+				change=true;
+			}
 		}
 		if(change==true && xpid_struct[currentcomport].comporthandle != INVALID_HANDLE_VALUE && xpid_struct[currentcomport].comporthandle != NULL)
 		{
@@ -888,6 +954,18 @@ void CSettings::PrintSettings()
 	m_i2_text.SetWindowText(outstring);
 	outstring.Format("%.1f",d2);
 	m_d2_text.SetWindowText(outstring);
+	m_pwm1_offset_spin.SetPos32(pwm1offset);
+	m_pwm2_offset_spin.SetPos32(pwm2offset);
+	m_pwm1_maximum_spin.SetPos32(pwm1maximum);
+	m_pwm2_maximum_spin.SetPos32(pwm2maximum);
+	if(pwmfrequencydivider==8)
+	{
+		CheckRadioButton(IDC_RADIO1, IDC_RADIO2, IDC_RADIO2);
+	}
+	else
+	{
+		CheckRadioButton(IDC_RADIO1, IDC_RADIO2, IDC_RADIO1);
+	}
 }
 
 void CSettings::OnCbnSelendokXpidCombo()
@@ -1168,4 +1246,74 @@ void CSettings::OnBnClickedGraphCheck()
 	{
 		SetTimer(1,1000,NULL);
 	}
+}
+
+
+void CSettings::OnBnClickedResetPid1()
+{
+	p1=4.200;
+	i1=0.400;
+	d1=0.400;
+	pwm1offset=19;
+	pwm1maximum=100;
+	WriteXPIDSettings(xpid_struct[currentcomport].comporthandle);
+	RereadXPIDSettings(xpid_struct[currentcomport].comporthandle);
+	PrintSettings();
+}
+
+
+void CSettings::OnBnClickedResetPid2()
+{
+	p2=4.200;
+	i2=0.400;
+	d2=0.400;
+	pwm2offset=19;
+	pwm2maximum=100;
+	WriteXPIDSettings(xpid_struct[currentcomport].comporthandle);
+	RereadXPIDSettings(xpid_struct[currentcomport].comporthandle);
+	PrintSettings();
+}
+
+
+void CSettings::OnDeltaposPwm1OffsetSpin(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
+	*pResult = 0;
+	SetTimer(2,50,NULL);
+}
+
+
+void CSettings::OnDeltaposPwm1MaximumSpin(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
+	*pResult = 0;
+	SetTimer(2,50,NULL);
+}
+
+
+void CSettings::OnDeltaposPwm2OffsetSpin(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
+	*pResult = 0;
+	SetTimer(2,50,NULL);
+}
+
+
+void CSettings::OnDeltaposPwm2MaximumSpin(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMUPDOWN pNMUpDown = reinterpret_cast<LPNMUPDOWN>(pNMHDR);
+	*pResult = 0;
+	SetTimer(2,50,NULL);
+}
+
+
+void CSettings::OnBnClickedRadio1()
+{
+	SetTimer(2,50,NULL);
+}
+
+
+void CSettings::OnBnClickedRadio2()
+{
+	SetTimer(2,50,NULL);
 }

@@ -97,4 +97,16 @@ public:
 	CStatic m_d2_text;
 	CStatic m_i2_text;
 	CStatic m_errorcount;
+	afx_msg void OnBnClickedResetPid1();
+	afx_msg void OnBnClickedResetPid2();
+	CSpinButtonCtrl m_pwm1_offset_spin;
+	CSpinButtonCtrl m_pwm1_maximum_spin;
+	CSpinButtonCtrl m_pwm2_offset_spin;
+	CSpinButtonCtrl m_pwm2_maximum_spin;
+	afx_msg void OnDeltaposPwm1OffsetSpin(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnDeltaposPwm1MaximumSpin(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnDeltaposPwm2OffsetSpin(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnDeltaposPwm2MaximumSpin(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnBnClickedRadio1();
+	afx_msg void OnBnClickedRadio2();
 };
