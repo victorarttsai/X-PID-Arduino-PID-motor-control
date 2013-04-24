@@ -88,8 +88,14 @@
 
 //Firmware version info
 int firmaware_version_mayor=1;
-int firmware_version_minor =3;
+int firmware_version_minor =4;
 
+//360° option for flight simulators
+bool turn360motor1 = false;
+bool turn360motor2 = false;
+
+int virtualtarget1;
+int virtualtarget2;
 int currentanalogue1 = 0;
 int currentanalogue2 = 0;
 int target1=512;
@@ -143,6 +149,10 @@ int FeedbackMax2			= 1021;		// Maximum position of pot 2 to scale, do not use 10
 int FeedbackMin2			= 2;		// Minimum position of pot 2 to scale, do not use 0 because it cannot control outside the pot range
 int FeedbackPotDeadZone1	= 0;		// +/- of this value will not move the motor		
 int FeedbackPotDeadZone2	= 0;		// +/- of this value will not move the motor
+float quarter1				= 254.75;
+float quarter2				= 254.75;
+float threequarter1			= 764.25;
+float threequarter2			= 764.25;
 
 //PID variables
 int motordirection1		= 0;			// motor 1 move direction 0=brake, 1=forward, 2=reverse
@@ -352,6 +362,10 @@ void ReadEEProm()
 		pwmfrequencydivider=1;
 		EEPROM.write(27,pwmfrequencydivider);
 	}
+	quarter1=float(FeedbackMax1-FeedbackMin1)/4.000;
+	quarter2=float(FeedbackMax2-FeedbackMin2)/4.000;
+	threequarter1=quarter1*3.000;
+	threequarter2=quarter1*3.000;
 	setPwmFrequency(9, pwmfrequencydivider);
 	setPwmFrequency(10, pwmfrequencydivider);
 }
@@ -551,9 +565,33 @@ void SerialWorker()
 	}
 }
 
+void CalculateVirtualTarget()
+{
+	if(turn360motor1==true)
+	{
+		virtualtarget1=target1;
+		if(currentanalogue1 > int(threequarter1) && target1 < int(quarter1)){virtualtarget1+=FeedbackMax1;}
+		else{if(currentanalogue1 < int(quarter1) && target1 > int(threequarter1)){virtualtarget1=0-FeedbackMax1-target1;}}
+	}
+	else
+	{
+		virtualtarget1=target1;
+	}
+	if(turn360motor2==true)
+	{
+		virtualtarget2=target2;
+		if(currentanalogue2 > int(threequarter2) && target2 < int(quarter2)){virtualtarget2+=FeedbackMax2;}
+		else{if(currentanalogue2 < int(quarter2) && target2 > int(threequarter2)){virtualtarget2=0-FeedbackMax2-target2;}}
+	}
+	else
+	{
+		virtualtarget2=target2;
+	}
+}
+
 void CalculateMotorDirection()
 {
-	if(target1 > (currentanalogue1 + FeedbackPotDeadZone1) || target1 < (currentanalogue1 - FeedbackPotDeadZone1))
+	if(virtualtarget1 > (currentanalogue1 + FeedbackPotDeadZone1) || virtualtarget1 < (currentanalogue1 - FeedbackPotDeadZone1))
 	{
 		if (OutputM1 >= 0)  
 		{                                    
@@ -570,7 +608,7 @@ void CalculateMotorDirection()
 		motordirection1=0;
 	}
 
-	if(target2 > (currentanalogue2 + FeedbackPotDeadZone2) || target2 < (currentanalogue2 - FeedbackPotDeadZone2))
+	if(virtualtarget2 > (currentanalogue2 + FeedbackPotDeadZone2) || virtualtarget2 < (currentanalogue2 - FeedbackPotDeadZone2))
 	{
 		if (OutputM2 >= 0)  
 		{                                    
@@ -599,7 +637,6 @@ int updateMotor1Pid(int targetPosition, int currentPosition)
 	float iTerm_motor_R = integral1 * constrain(integrated_motor_1_error, -GUARD_MOTOR_1_GAIN, GUARD_MOTOR_1_GAIN);
 	float dTerm_motor_R = derivative1 * (error - last_motor_1_error);                            
 	last_motor_1_error = error;
-
 	return constrain(K_motor_1*(pTerm_motor_R + iTerm_motor_R + dTerm_motor_R), -255, 255);
 }
 
@@ -617,8 +654,8 @@ int updateMotor2Pid(int targetPosition, int currentPosition)
 
 void CalculatePID()
 {
-	OutputM1=updateMotor1Pid(target1,currentanalogue1);
-	OutputM2=updateMotor2Pid(target2,currentanalogue2);
+	OutputM1=updateMotor1Pid(virtualtarget1,currentanalogue1);
+	OutputM2=updateMotor2Pid(virtualtarget2,currentanalogue2);
 }
 
 void SetPWM()
@@ -764,6 +801,7 @@ void loop()
 	{
 		FeedbackPotWorker();
 		SerialWorker();
+		CalculateVirtualTarget();
 		CalculatePID();
 		CalculateMotorDirection();
 		if(disable==0)
