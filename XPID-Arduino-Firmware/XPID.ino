@@ -52,7 +52,7 @@
 	Pin 10 - PWM1 - Speed for Motor 1. 
 	Pin  9 - PWM2 - Speed for Motor 2.
 	Pin  2 - INA1 - motor 1 turn 
-	Pin  3 - INB1 - motor 1 turn
+	Pin  3 - INA2 - motor 1 turn
 	Pin  4 - INB1 - motor 2 turn
 	Pin  5 - INB2 - motor 2 turn
 
