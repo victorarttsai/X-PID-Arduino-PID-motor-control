@@ -180,6 +180,8 @@ double integral2		= 0.400;
 double derivative2		= 0.400;
 int OutputM1					= 0;
 int OutputM2					= 0;
+int oldOutputM1					= 0;
+int oldOutputM2					= 0;
 double integrated_motor_1_error = 0;
 double integrated_motor_2_error = 0;
 float last_motor_1_error		= 0;
@@ -201,9 +203,10 @@ double debugdouble =0;
 void setup()
 {
 	//Serial.begin(115200);   //Uncomment this for arduino UNO without ftdi serial chip
-	Serial.begin(9600);  //Uncomment this for arduino nano, arduino with ftdi chip or arduino duemilanove
-
-
+	Serial.begin(9600);			//Uncomment this for arduino nano, arduino with ftdi chip or arduino duemilanove
+	mySerial.begin(38400);		//Software serial port for control the sabertooth
+	mySerial.write(64);
+	mySerial.write(192);
 	disable=1;
 
 #if FASTADC
@@ -321,8 +324,8 @@ void ReadEEProm()
 	quarter2=float(FeedbackMax2-FeedbackMin2)/4.000;
 	threequarter1=quarter1*3.000;
 	threequarter2=quarter1*3.000;
-	setPwmFrequency(5, pwmfrequencydivider);
-	setPwmFrequency(6, pwmfrequencydivider);
+	//setPwmFrequency(5, pwmfrequencydivider);
+	//setPwmFrequency(6, pwmfrequencydivider);
 }
 
 void SendAnalogueFeedback(int analogue1, int analogue2)
@@ -451,23 +454,13 @@ void ParseCommand()
 	}
 	if(commandbuffer[0]==207 || commandbuffer[0]==208)		//Disable power on both motor
 	{
-		analogWrite(PWMPinM1,	  0);
-		UnsetMotor1Inp1();
-		UnsetMotor1Inp2();
-		analogWrite(PWMPinM2,	  0);
-		UnsetMotor2Inp1();
-		UnsetMotor2Inp2();
+		mySerial.write(64);
+		mySerial.write(192);
 		disable=1;
 		return;
 	}
 	if(commandbuffer[0]==209 || commandbuffer[0]==210)		//Enable power on both motor
 	{
-		analogWrite(PWMPinM1,	  128);
-		UnsetMotor1Inp1();
-		UnsetMotor1Inp2();
-		analogWrite(PWMPinM2,	  128);
-		UnsetMotor2Inp1();
-		UnsetMotor2Inp2();
 		disable=0;
 		return;
 	}
@@ -544,46 +537,6 @@ void CalculateVirtualTarget()
 	}
 }
 
-void CalculateMotorDirection()
-{
-	if(virtualtarget1 > (currentanalogue1 + FeedbackPotDeadZone1) || virtualtarget1 < (currentanalogue1 - FeedbackPotDeadZone1))
-	{
-		if (OutputM1 >= 0)  
-		{                                    
-			motordirection1=1;				// drive motor 1 forward
-		}  
-		else 
-		{                                              
-			motordirection1=2;				// drive motor 1 backward
-			OutputM1 = abs(OutputM1);
-		}
-	}
-	else
-	{
-		motordirection1=0;
-	}
-
-	if(virtualtarget2 > (currentanalogue2 + FeedbackPotDeadZone2) || virtualtarget2 < (currentanalogue2 - FeedbackPotDeadZone2))
-	{
-		if (OutputM2 >= 0)  
-		{                                    
-			motordirection2=1;				// drive motor 2 forward
-		}  
-		else 
-		{                                              
-			motordirection2=2;				// drive motor 2 backward
-			OutputM2 = abs(OutputM2);
-		}
-	}
-	else
-	{
-		motordirection2=0;
-	}
-
-	OutputM1 = constrain(OutputM1, -255, 255);
-	OutputM2 = constrain(OutputM2, -255, 255);
-}
-
 int updateMotor1Pid(int targetPosition, int currentPosition)   
 {
 	float error = (float)targetPosition - (float)currentPosition; 
@@ -616,11 +569,22 @@ void CalculatePID()
 void SetHBridgeControl() //With direct port manipulation for speedup the arduino framework!
 {
 	//Motor 1
-	if(motordirection1 != oldmotordirection1 || motordirection2 != oldmotordirection2)
+	if(motordirection1 != oldmotordirection1 || OutputM1 != oldOutputM1)
 	{
-
+		int sabertoothcommand=OutputM1/4;
+		sabertoothcommand+=64;
+		mySerial.write(sabertoothcommand);
 		oldmotordirection1=motordirection1;
+		oldOutputM1=OutputM1;
+	}
+	//Motor 2
+	if(motordirection2 != oldmotordirection2 || OutputM2 != oldOutputM2)
+	{
+		int sabertoothcommand=OutputM2/4;
+		sabertoothcommand+=192;
+		mySerial.write(sabertoothcommand);
 		oldmotordirection2=motordirection2;
+		oldOutputM2=OutputM2;
 	}
 }
 
@@ -635,7 +599,6 @@ void loop()
 		SerialWorker();
 		CalculateVirtualTarget();
 		CalculatePID();
-		CalculateMotorDirection();
 		if(disable==0)
 		{
 			SetHBridgeControl();
